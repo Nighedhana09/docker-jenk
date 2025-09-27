@@ -36,7 +36,7 @@ var questionSchema = new mongoose.Schema({
   }
 }, 
 {
-  timestamps: {}
+  timestamps: true
 })
 
 module.exports = questionSchema;
