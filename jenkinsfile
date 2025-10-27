@@ -9,20 +9,29 @@ pipeline {
             }
         }
 
+        stage('Clean old containers') {
+            steps {
+                echo 'Stopping and removing old containers if they exist...'
+                sh 'docker-compose -f docker-compose.yaml down || true'
+            }
+        }
+
         stage('Build Docker Images') {
             steps {
                 echo 'Building Docker images using docker-compose...'
                 sh 'docker-compose -f docker-compose.yaml build'
             }
         }
+
+        stage('Start Containers') {
+            steps {
+                echo 'Starting containers using docker-compose...'
+                sh 'docker-compose -f docker-compose.yaml up -d'
+            }
+        }
     }
 
     post {
-        always {
-            echo 'Starting containers using docker-compose...'
-            sh 'docker-compose -f docker-compose.yaml down || true'
-            sh 'docker-compose -f docker-compose.yaml up -d'
-        }
         success {
             echo '✅ Build and deployment completed successfully.'
         }
