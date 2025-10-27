@@ -6,7 +6,7 @@ WORKDIR /usr/user-portal-frontend
 COPY . .
 RUN rm -rf node_modules/ package-lock.json
 RUN npm cache clean --force
-RUN npm install 
+RUN npm install ajv@6 ajv-keywords@3 --save-dev
 RUN npm run build
 
 # Stage 2: Serve with Nginx
