@@ -52,7 +52,7 @@ services:
       - REACT_APP_API_BASE_URL=http://backend:5000
       
     build: 
-      context: frontend
+      context: ./frontend
       dockerfile: Dockerfile
     ports:
      - 3000:80
@@ -66,7 +66,7 @@ services:
       - NODE_ENV=docker
       - REACT_APP_API_BASE_URL=http://backend:5000
     build:
-      context: user-portal-frontend
+      context: ./user-portal-frontend
       dockerfile: Dockerfile
 
     ports:
