@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from Git...'
+                git branch: 'main', url: 'https://github.com/Nighedhana09/docker-jenkins-student-application.git'
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                echo 'Building Docker images using docker-compose...'
+                sh 'docker-compose -f docker-compose.yaml build'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Starting containers using docker-compose...'
+            sh 'docker-compose -f docker-compose.yaml down || true'
+            sh 'docker-compose -f docker-compose.yaml up -d'
+        }
+        success {
+            echo '✅ Build and deployment completed successfully.'
+        }
+        failure {
+            echo '❌ Build failed. Please check logs.'
+        }
+    }
+}
