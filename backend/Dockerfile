@@ -1,12 +1,19 @@
-FROM node:13-alpine
+# Use Node 18 LTS
+FROM node:18-alpine
 
 WORKDIR /usr/backend
 
-COPY . .
-RUN rm -rf node_modules/ package-lock.json
+# Copy package.json first for caching
+COPY package*.json ./
 
-RUN npm install nodemon
+# Install all dependencies including devDependencies for nodemon
 RUN npm install
 
+# Copy backend source code
+COPY . .
 
-CMD ["sh", "-c", "npm run start"]
+# Expose backend port
+EXPOSE 5000
+
+# Start backend server
+CMD ["npm", "start"]
