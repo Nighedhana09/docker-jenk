@@ -17,7 +17,7 @@ FROM nginx:alpine
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy build files
-COPY --from=build /usr/user-portal-frontend/build /usr/share/nginx/html/
+COPY --from=build /usr/frontend/build /usr/share/nginx/html/
 
 
 # Copy custom Nginx config if using path-based routing
