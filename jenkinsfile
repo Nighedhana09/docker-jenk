@@ -29,6 +29,16 @@ pipeline {
                 sh 'docker-compose -f docker-compose.yaml up -d'
             }
         }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Running SonarQube scan...'
+                // 'SonarQube' is the name of the server you configured in Jenkins
+                withSonarQubeEnv('SonarQube') {
+                    sh 'sonar-scanner -Dsonar.projectKey=docker-jenk -Dsonar.sources=./'
+                }
+            }
+        }
     }
 
     post {
