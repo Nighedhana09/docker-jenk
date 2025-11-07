@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         // Docker Hub credentials ID in Jenkins
-        DOCKERHUB_CRED = 'dockerhub-niggi123'  
-        DOCKER_USER = 'niggi123'
+        DOCKERHUB_CRED = 'd2fed8f8-d4dc-4c79-9503-4b52ed3a4b47'  
+        DOCKER_USER = 'dockerhub'
         USER_FRONTEND_IMAGE = 'user-frontend-app'
         FRONTEND_IMAGE = 'frontend-app'
         DOCKER_TAG = '1.0'
