@@ -33,9 +33,15 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Running SonarQube scan...'
-                // 'SonarQube' is the name of the server you configured in Jenkins
-                withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner -Dsonar.projectKey=docker-jenk -Dsonar.sources=./'
+                // Use withCredentials to inject Secret Text at runtime
+                withCredentials([string(credentialsId: 'ccbf3ddd-0194-4c3d-8849-efe0bdf5d570', variable: 'SONAR_TOKEN')]) {
+                    sh """
+                        /opt/sonar-scanner/bin/sonar-scanner \
+                        -Dsonar.projectKey=docker-jenk \
+                        -Dsonar.sources=./ \
+                        -Dsonar.host.url=http://3.83.140.128/:9000 \
+                        -Dsonar.login=${SONAR_TOKEN}
+                    """
                 }
             }
         }
