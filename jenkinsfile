@@ -8,6 +8,12 @@ pipeline {
         USER_FRONTEND_IMAGE = 'user-frontend-app'
         FRONTEND_IMAGE = 'frontend-app'
         DOCKER_TAG = '1.0'
+
+        // EC2 deployment variables
+        EC2_IP = '54.163.51.114'               // Replace with your EC2 public IP
+        EC2_USER = 'ubuntu'                    // EC2 default user (Ubuntu AMI)
+        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'  // Path to docker-compose.yaml on EC2
+        SSH_CRED_ID = 'ec2-ssh-key'            // Jenkins SSH credential ID
     }
 
     stages {
@@ -39,21 +45,6 @@ pipeline {
             }
         }
 
-       /* stage('SonarQube Analysis') {
-            steps {
-                echo 'Running SonarQube scan...'
-                withCredentials([string(credentialsId: 'ccbf3ddd-0194-4c3d-8849-efe0bdf5d570', variable: 'SONAR_TOKEN')]) {
-                    sh """
-                        /opt/sonar-scanner/bin/sonar-scanner \
-                        -Dsonar.projectKey=docker-jenk \
-                        -Dsonar.sources=./ \
-                        -Dsonar.host.url=http://3.83.140.128:9000 \
-                        -Dsonar.login=${SONAR_TOKEN}
-                    """
-                }
-            }
-        }*/
-
         stage('Push Docker Images to Docker Hub') {
             steps {
                 echo 'Logging into Docker Hub and pushing custom images...'
@@ -72,14 +63,37 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to EC2') {
+            steps {
+                echo 'Deploying containers to EC2 via SSH...'
+                withCredentials([sshUserPrivateKey(credentialsId: "${SSH_CRED_ID}", keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
+                            echo "Stopping old containers..."
+                            docker compose -f $DOCKER_COMPOSE_PATH down || true
+
+                            echo "Pulling latest images..."
+                            docker pull $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                            docker pull $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+
+                            echo "Starting containers..."
+                            docker compose -f $DOCKER_COMPOSE_PATH up -d
+
+                            echo "Deployment completed!"
+                        '
+                    """
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo '✅ Build, Sonar scan, and Docker push completed successfully.'
+            echo '✅ Build, Docker push, and EC2 deployment completed successfully.'
         }
         failure {
-            echo '❌ Build failed. Please check logs.'
+            echo '❌ Build or deployment failed. Please check logs.'
         }
     }
 }
