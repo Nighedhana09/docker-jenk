@@ -2,61 +2,56 @@ pipeline {
     agent any
 
     environment {
-        // Docker Hub credentials ID in Jenkins
-        DOCKERHUB_CRED = 'd2fed8f8-d4dc-4c79-9503-4b52ed3a4b47'  
-        DOCKER_USER = 'dockerhub'
+        DOCKERHUB_CRED = 'dockerhub-creds'     // Jenkins credential ID
         USER_FRONTEND_IMAGE = 'user-frontend-app'
         FRONTEND_IMAGE = 'frontend-app'
         DOCKER_TAG = '1.0'
 
-        // EC2 deployment variables
-        EC2_IP = '54.163.51.114'               // Replace with your EC2 public IP
-        EC2_USER = 'ubuntu'                    // EC2 default user (Ubuntu AMI)
-        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'  // Path to docker-compose.yaml on EC2
-        SSH_CRED_ID = 'ec2-ssh-key'            // Jenkins SSH credential ID
+        EC2_IP = '54.163.51.114'
+        EC2_USER = 'ubuntu'
+        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'
+        SSH_CRED_ID = 'ec2-ssh-key'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                echo 'Checking out code from Git...'
                 git branch: 'main', url: 'https://github.com/Nighedhana09/docker-jenk.git'
             }
         }
 
         stage('Clean old containers') {
             steps {
-                echo 'Stopping and removing old containers if they exist...'
                 sh 'docker compose -f docker-compose.yaml down || true'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                echo 'Building Docker images using docker-compose...'
                 sh 'docker compose -f docker-compose.yaml build'
             }
         }
 
         stage('Start Containers') {
             steps {
-                echo 'Starting containers using docker-compose...'
                 sh 'docker compose -f docker-compose.yaml up -d'
             }
         }
 
         stage('Push Docker Images to Docker Hub') {
             steps {
-                echo 'Logging into Docker Hub and pushing custom images...'
-                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CRED}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKERHUB_CRED}",
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     sh """
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
 
-                        # Push user-frontend-app
                         docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
                         docker push $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
 
-                        # Push frontend-app
                         docker tag $FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
                         docker push $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
                     """
@@ -66,21 +61,17 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                echo 'Deploying containers to EC2 via SSH...'
-                withCredentials([sshUserPrivateKey(credentialsId: "${SSH_CRED_ID}", keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: "${SSH_CRED_ID}",
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
-                            echo "Stopping old containers..."
                             docker compose -f $DOCKER_COMPOSE_PATH down || true
-
-                            echo "Pulling latest images..."
                             docker pull $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
                             docker pull $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
-
-                            echo "Starting containers..."
                             docker compose -f $DOCKER_COMPOSE_PATH up -d
-
-                            echo "Deployment completed!"
                         '
                     """
                 }
@@ -90,10 +81,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Build, Docker push, and EC2 deployment completed successfully.'
+            echo 'SUCCESS: Build, push, and EC2 deployment completed.'
         }
         failure {
-            echo '❌ Build or deployment failed. Please check logs.'
+            echo 'FAILED: Please check logs.'
         }
     }
 }
