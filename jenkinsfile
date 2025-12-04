@@ -9,7 +9,7 @@ pipeline {
 
         EC2_IP = '54.163.51.114'
         EC2_USER = 'ubuntu'
-        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'
+        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'   // Ensure file exists on EC2
         SSH_CRED_ID = 'ec2-ssh-key'
     }
 
@@ -41,11 +41,15 @@ pipeline {
 
         stage('Push Docker Images to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: "${DOCKERHUB_CRED}",
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${DOCKERHUB_CRED}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
                     sh """
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
 
@@ -62,7 +66,6 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
 
-                // 🔥 FIX — Add DOCKER_USER & DOCKER_PASS here also
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: "${SSH_CRED_ID}",
@@ -77,14 +80,14 @@ pipeline {
                 ]) {
 
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@$EC2_IP '
+                        ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@$EC2_IP "
                             echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
 
                             docker compose -f $DOCKER_COMPOSE_PATH down || true
                             docker pull \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
                             docker pull \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
                             docker compose -f $DOCKER_COMPOSE_PATH up -d
-                        '
+                        "
                     """
                 }
             }
