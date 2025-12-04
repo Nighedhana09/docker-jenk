@@ -47,13 +47,13 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
 
-                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                        docker push \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
 
-                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                        docker push \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
                     """
                 }
             }
@@ -61,16 +61,28 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: "${SSH_CRED_ID}",
-                    keyFileVariable: 'SSH_KEY',
-                    usernameVariable: 'SSH_USER'
-                )]) {
+
+                // 🔥 FIX — Add DOCKER_USER & DOCKER_PASS here also
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: "${SSH_CRED_ID}",
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    ),
+                    usernamePassword(
+                        credentialsId: "${DOCKERHUB_CRED}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
+                        ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@$EC2_IP '
+                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+
                             docker compose -f $DOCKER_COMPOSE_PATH down || true
-                            docker pull $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
-                            docker pull $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                            docker pull \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                            docker pull \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
                             docker compose -f $DOCKER_COMPOSE_PATH up -d
                         '
                     """
