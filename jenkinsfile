@@ -2,14 +2,18 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CRED = 'dockerhub-creds'     // Jenkins credential ID
-        USER_FRONTEND_IMAGE = 'user-frontend-app'
+        // Docker Hub credentials stored in Jenkins
+        DOCKERHUB_CRED = 'dockerhub-creds'     
+        DOCKER_USER = 'niggi123'
+        BACKEND_IMAGE = 'backend-app'
         FRONTEND_IMAGE = 'frontend-app'
+        USER_FRONTEND_IMAGE = 'user-frontend-app'
         DOCKER_TAG = '1.0'
 
+        // EC2 deployment variables
         EC2_IP = '54.163.51.114'
         EC2_USER = 'ubuntu'
-        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'   // Ensure file exists on EC2
+        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'
         SSH_CRED_ID = 'ec2-ssh-key'
     }
 
@@ -21,43 +25,34 @@ pipeline {
             }
         }
 
-        stage('Clean old containers') {
-            steps {
-                sh 'docker compose -f docker-compose.yaml down || true'
-            }
-        }
-
         stage('Build Docker Images') {
             steps {
-                sh 'docker compose -f docker-compose.yaml build'
-            }
-        }
-
-        stage('Start Containers') {
-            steps {
-                sh 'docker compose -f docker-compose.yaml up -d'
+                sh """
+                    docker build -t $BACKEND_IMAGE:$DOCKER_TAG ./backend
+                    docker build -t $FRONTEND_IMAGE:$DOCKER_TAG ./frontend
+                    docker build -t $USER_FRONTEND_IMAGE:$DOCKER_TAG ./user-portal-frontend
+                """
             }
         }
 
         stage('Push Docker Images to Docker Hub') {
             steps {
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: "${DOCKERHUB_CRED}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKERHUB_CRED}",
+                    usernameVariable: 'DOCKER_USER_VAR',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
                     sh """
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER_VAR --password-stdin
 
-                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                        docker tag $BACKEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$BACKEND_IMAGE:$DOCKER_TAG
+                        docker push $DOCKER_USER/$BACKEND_IMAGE:$DOCKER_TAG
 
-                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                        docker push $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+
+                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                        docker push $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
                     """
                 }
             }
@@ -65,29 +60,26 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: "${SSH_CRED_ID}",
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    ),
-                    usernamePassword(
-                        credentialsId: "${DOCKERHUB_CRED}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: "${SSH_CRED_ID}",
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \$SSH_USER@$EC2_IP "
-                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
+                            echo "Stopping old containers..."
+                            sudo docker compose -f $DOCKER_COMPOSE_PATH down || true
 
-                            docker compose -f $DOCKER_COMPOSE_PATH down || true
-                            docker pull \$DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
-                            docker pull \$DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
-                            docker compose -f $DOCKER_COMPOSE_PATH up -d
-                        "
+                            echo "Pulling latest images..."
+                            sudo docker pull $DOCKER_USER/$BACKEND_IMAGE:$DOCKER_TAG
+                            sudo docker pull $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                            sudo docker pull $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+
+                            echo "Starting containers..."
+                            sudo docker compose -f $DOCKER_COMPOSE_PATH up -d
+
+                            echo "Deployment completed!"
+                        '
                     """
                 }
             }
@@ -96,10 +88,10 @@ pipeline {
 
     post {
         success {
-            echo 'SUCCESS: Build, push, and EC2 deployment completed.'
+            echo '✅ Build, push, and EC2 deployment completed successfully.'
         }
         failure {
-            echo 'FAILED: Please check logs.'
+            echo '❌ Build or deployment failed. Please check logs.'
         }
     }
 }
