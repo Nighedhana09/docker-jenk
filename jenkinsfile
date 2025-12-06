@@ -22,14 +22,21 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images via Compose') {
+        stage('Build Docker Images on EC2') {
             steps {
-                sh """
-                    # Navigate to the folder containing docker-compose.yaml
-                    cd .
-                    # Build all services defined in docker-compose.yaml
-                    docker compose --env-file /dev/null -f $DOCKER_COMPOSE_PATH build
-                """
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: "${SSH_CRED_ID}",
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
+                            echo "Building Docker images using docker-compose..."
+                            sudo docker compose --env-file /dev/null -f $DOCKER_COMPOSE_PATH build
+                            echo "Docker images built successfully!"
+                        '
+                    """
+                }
             }
         }
 
@@ -41,9 +48,10 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER_VAR --password-stdin
+                        echo "Logging in to Docker Hub..."
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
-                        # Push all images defined in compose
+                        echo "Tagging and pushing images..."
                         docker tag backend-app:latest $DOCKER_USER/backend-app:$DOCKER_TAG
                         docker push $DOCKER_USER/backend-app:$DOCKER_TAG
 
@@ -52,12 +60,14 @@ pipeline {
 
                         docker tag user-frontend-app:latest $DOCKER_USER/user-frontend-app:$DOCKER_TAG
                         docker push $DOCKER_USER/user-frontend-app:$DOCKER_TAG
+
+                        echo "Images pushed successfully!"
                     """
                 }
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Deploy on EC2') {
             steps {
                 withCredentials([sshUserPrivateKey(
                     credentialsId: "${SSH_CRED_ID}",
@@ -69,15 +79,15 @@ pipeline {
                             echo "Stopping old containers..."
                             sudo docker compose -f $DOCKER_COMPOSE_PATH down --remove-orphans || true
 
-                            echo "Pulling latest images..."
+                            echo "Pulling latest images from Docker Hub..."
                             sudo docker pull $DOCKER_USER/backend-app:$DOCKER_TAG
                             sudo docker pull $DOCKER_USER/frontend-app:$DOCKER_TAG
                             sudo docker pull $DOCKER_USER/user-frontend-app:$DOCKER_TAG
 
-                            echo "Starting containers..."
-                            sudo docker compose -f $DOCKER_COMPOSE_PATH up -d
+                            echo "Starting containers using docker-compose..."
+                            sudo docker compose --env-file /dev/null -f $DOCKER_COMPOSE_PATH up -d
 
-                            echo "Deployment completed!"
+                            echo "Deployment completed successfully!"
                         '
                     """
                 }
@@ -90,7 +100,7 @@ pipeline {
             echo '✅ Build, push, and EC2 deployment completed successfully.'
         }
         failure {
-            echo '❌ Build or deployment failed. Please check logs.'
+            echo '❌ Build or deployment failed. Check the logs for details.'
         }
     }
 }
