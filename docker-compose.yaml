@@ -1,81 +1,79 @@
-services:
-  backend:
-    container_name: backend-app
-    image: backend-app:1.0
-    environment:
-      - NODE_ENV=docker
-    build:
-      context: backend
-      dockerfile: Dockerfile
-    ports:
-      - 5000:5000
-    links:
-      - mongodb
+pipeline {
+    agent any
 
+    environment {
+        // Docker Hub credentials stored in Jenkins
+        DOCKERHUB_CRED = 'dockerhub-creds'     
+        DOCKER_USER = 'niggi123'
+        BACKEND_IMAGE = 'backend-app'
+        FRONTEND_IMAGE = 'frontend-app'
+        USER_FRONTEND_IMAGE = 'user-frontend-app'
+        DOCKER_TAG = '1.0'
+    }
 
-  mongodb:
-    image: mongo
-    ports:
-     - 27018:27017
-    environment:
-     - MONGO_INITDB_ROOT_USERNAME=admin
-     - MONGO_INITDB_ROOT_PASSWORD=password
-    volumes:
-     - mongo-data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+    stages {
 
-  mongo-express:
-    image: mongo-express
-    restart: always
-    ports:
-     - 8081:8081
-    environment:
-     - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
-     - ME_CONFIG_MONGODB_ADMINPASSWORD=password
-     - ME_CONFIG_MONGODB_SERVER=mongodb
-    depends_on:
-     - "mongodb"
-      
-  
-  frontend:
-    container_name: frontend-app
-    image: frontend-app:1.0
-    environment:
-      - NODE_ENV=docker
-      - REACT_APP_API_BASE_URL=http://backend:5000
-      
-    build: 
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-     - 4000:80
-    depends_on:
-     - backend
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Nighedhana09/docker-jenk.git'
+            }
+        }
 
-  user-frontend:
-    container_name: user-frontend-app
-    image: user-frontend-app:1.0
-    environment:
-      - NODE_ENV=docker
-      - REACT_APP_API_BASE_URL=http://backend:5000
-    build:
-      context: ./user-portal-frontend
-      dockerfile: Dockerfile
+        stage('Build All Docker Images') {
+            steps {
+                sh """
+                    echo "Building all Docker images (including mongo and mongo-express)..."
+                    docker compose --env-file /dev/null build
+                    echo "All images built successfully!"
+                """
+            }
+        }
 
-    ports:
+        stage('Push Custom Images to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKERHUB_CRED}",
+                    usernameVariable: 'DOCKER_USER_VAR',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                        echo "Logging in to Docker Hub..."
+                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
-      - 4001:80
+                        echo "Tagging and pushing only custom images..."
+                        for IMAGE in $BACKEND_IMAGE $FRONTEND_IMAGE $USER_FRONTEND_IMAGE; do
+                            echo "Tagging and pushing \$IMAGE..."
+                            docker tag \$IMAGE:latest \$DOCKER_USER_VAR/\$IMAGE:$DOCKER_TAG
+                            docker push \$DOCKER_USER_VAR/\$IMAGE:$DOCKER_TAG
+                        done
 
+                        echo "Push completed!"
+                    """
+                }
+            }
+        }
 
-    depends_on:
-      - backend
-      - frontend
+        stage('Deploy Containers') {
+            steps {
+                sh """
+                    echo "Stopping old containers (if any)..."
+                    docker compose down --remove-orphans || true
 
-volumes:
-  mongo-data:
-    driver: local
+                    echo "Starting containers with docker-compose..."
+                    docker compose --env-file /dev/null up -d
+
+                    echo "Deployment completed!"
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Build, push (custom images), and deployment completed successfully.'
+        }
+        failure {
+            echo '❌ Pipeline failed. Check logs for details.'
+        }
+    }
+}
