@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Docker Hub credentials stored in Jenkins
-        DOCKERHUB_CRED = 'dockerhub-creds'     
+        DOCKERHUB_CRED = 'dockerhub-creds'
         DOCKER_USER = 'niggi123'
         BACKEND_IMAGE = 'backend-app'
         FRONTEND_IMAGE = 'frontend-app'
@@ -19,12 +19,16 @@ pipeline {
             }
         }
 
-        stage('Build All Docker Images') {
+        stage('Build and Deploy Containers') {
             steps {
                 sh """
-                    echo "Building all Docker images (including mongo and mongo-express)..."
-                    docker compose --env-file /dev/null build
-                    echo "All images built successfully!"
+                    echo "Stopping old containers (if any)..."
+                    docker compose down --remove-orphans || true
+
+                    echo "Building all images and starting containers..."
+                    docker compose up -d --build
+
+                    echo "All containers are up and running!"
                 """
             }
         }
@@ -41,36 +45,25 @@ pipeline {
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
                         echo "Tagging and pushing only custom images..."
-                        for IMAGE in $BACKEND_IMAGE $FRONTEND_IMAGE $USER_FRONTEND_IMAGE; do
-                            echo "Tagging and pushing \$IMAGE..."
-                            docker tag \$IMAGE:latest \$DOCKER_USER_VAR/\$IMAGE:$DOCKER_TAG
-                            docker push \$DOCKER_USER_VAR/\$IMAGE:$DOCKER_TAG
-                        done
+                        docker tag $BACKEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
+                        docker push \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
 
-                        echo "Push completed!"
+                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
+                        docker push \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
+
+                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                        docker push \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+
+                        echo "Custom images pushed successfully!"
                     """
                 }
-            }
-        }
-
-        stage('Deploy Containers') {
-            steps {
-                sh """
-                    echo "Stopping old containers (if any)..."
-                    docker compose down --remove-orphans || true
-
-                    echo "Starting containers with docker-compose..."
-                    docker compose --env-file /dev/null up -d
-
-                    echo "Deployment completed!"
-                """
             }
         }
     }
 
     post {
         success {
-            echo '✅ Build, push (custom images), and deployment completed successfully.'
+            echo '✅ Build, push, and deployment completed successfully.'
         }
         failure {
             echo '❌ Pipeline failed. Check logs for details.'
