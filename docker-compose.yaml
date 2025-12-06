@@ -15,7 +15,7 @@ services:
       - mongodb
 
   mongodb:
-    image: mongo:6.0
+    image: mongo
     container_name: mongodb
     ports:
       - "27018:27017"
@@ -24,12 +24,12 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password
     volumes:
       - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD-SHELL", "mongo -u admin -p password --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
+    #healthcheck:
+     # test: ["CMD-SHELL", "mongo -u admin -p password --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      #interval: 10s
+      #timeout: 5s
+      #retries: 10
+      #start_period: 30s 
 
   mongo-express:
     image: mongo-express
@@ -66,7 +66,7 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: docker
-      REACT_APP_API_BASE_URL: http://backend:5000
+      REACT_APP_API_BASE_URL: http://34.204.108.73:5000
     ports:
       - "4001:80"
     depends_on:
