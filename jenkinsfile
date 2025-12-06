@@ -6,12 +6,6 @@ pipeline {
         DOCKERHUB_CRED = 'dockerhub-creds'     
         DOCKER_USER = 'niggi123'
         DOCKER_TAG = '1.0'
-
-        // EC2 deployment variables
-        EC2_IP = '34.204.108.73'
-        EC2_USER = 'ubuntu'
-        DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'
-        SSH_CRED_ID = 'ec2-ssh-key'
     }
 
     stages {
@@ -22,21 +16,13 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images on EC2') {
+        stage('Build Docker Images via Compose') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: "${SSH_CRED_ID}",
-                    keyFileVariable: 'SSH_KEY',
-                    usernameVariable: 'SSH_USER'
-                )]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
-                            echo "Building Docker images using docker-compose..."
-                            sudo docker compose --env-file /dev/null -f $DOCKER_COMPOSE_PATH build
-                            echo "Docker images built successfully!"
-                        '
-                    """
-                }
+                sh """
+                    echo "Building all Docker images using docker-compose..."
+                    docker compose --env-file /dev/null build
+                    echo "Docker images built successfully!"
+                """
             }
         }
 
@@ -52,55 +38,44 @@ pipeline {
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
                         echo "Tagging and pushing images..."
-                        docker tag backend-app:latest $DOCKER_USER/backend-app:$DOCKER_TAG
-                        docker push $DOCKER_USER/backend-app:$DOCKER_TAG
 
-                        docker tag frontend-app:latest $DOCKER_USER/frontend-app:$DOCKER_TAG
-                        docker push $DOCKER_USER/frontend-app:$DOCKER_TAG
+                        # Extract all services from docker-compose
+                        SERVICES=\$(docker compose config --services)
 
-                        docker tag user-frontend-app:latest $DOCKER_USER/user-frontend-app:$DOCKER_TAG
-                        docker push $DOCKER_USER/user-frontend-app:$DOCKER_TAG
+                        for SERVICE in \$SERVICES; do
+                            IMAGE_NAME=\$SERVICE
+                            echo "Tagging and pushing \$IMAGE_NAME..."
+                            docker tag \$IMAGE_NAME:latest \$DOCKER_USER_VAR/\$IMAGE_NAME:$DOCKER_TAG
+                            docker push \$DOCKER_USER_VAR/\$IMAGE_NAME:$DOCKER_TAG
+                        done
 
-                        echo "Images pushed successfully!"
+                        echo "All images pushed successfully!"
                     """
                 }
             }
         }
 
-        stage('Deploy on EC2') {
+        stage('Deploy Containers via Compose') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: "${SSH_CRED_ID}",
-                    keyFileVariable: 'SSH_KEY',
-                    usernameVariable: 'SSH_USER'
-                )]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
-                            echo "Stopping old containers..."
-                            sudo docker compose -f $DOCKER_COMPOSE_PATH down --remove-orphans || true
+                sh """
+                    echo "Stopping old containers (if any)..."
+                    docker compose down --remove-orphans || true
 
-                            echo "Pulling latest images from Docker Hub..."
-                            sudo docker pull $DOCKER_USER/backend-app:$DOCKER_TAG
-                            sudo docker pull $DOCKER_USER/frontend-app:$DOCKER_TAG
-                            sudo docker pull $DOCKER_USER/user-frontend-app:$DOCKER_TAG
+                    echo "Starting containers..."
+                    docker compose --env-file /dev/null up -d
 
-                            echo "Starting containers using docker-compose..."
-                            sudo docker compose --env-file /dev/null -f $DOCKER_COMPOSE_PATH up -d
-
-                            echo "Deployment completed successfully!"
-                        '
-                    """
-                }
+                    echo "Deployment completed successfully!"
+                """
             }
         }
     }
 
     post {
         success {
-            echo '✅ Build, push, and EC2 deployment completed successfully.'
+            echo '✅ Build, push, and deployment completed successfully.'
         }
         failure {
-            echo '❌ Build or deployment failed. Check the logs for details.'
+            echo '❌ Pipeline failed. Check logs for details.'
         }
     }
 }
