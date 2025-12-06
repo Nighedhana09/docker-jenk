@@ -11,7 +11,7 @@ pipeline {
         DOCKER_TAG = '1.0'
 
         // EC2 deployment variables
-        EC2_IP = '54.163.51.114'
+        EC2_IP = '34.204.108.73'
         EC2_USER = 'ubuntu'
         DOCKER_COMPOSE_PATH = '/home/ubuntu/docker-compose.yaml'
         SSH_CRED_ID = 'ec2-ssh-key'
