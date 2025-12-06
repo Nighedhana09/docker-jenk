@@ -28,8 +28,8 @@ services:
       test: ["CMD-SHELL", "mongo -u admin -p password --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 30s
 
   mongo-express:
     image: mongo-express
