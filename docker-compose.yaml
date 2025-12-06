@@ -1,79 +1,74 @@
+version: '3.8'
+
 services:
   backend:
     container_name: backend-app
     image: backend-app:1.0
-    environment:
-      - NODE_ENV=docker
     build:
-      context: backend
+      context: ./backend
       dockerfile: Dockerfile
+    environment:
+      NODE_ENV: docker
     ports:
-      - 5000:5000
-    links:
+      - "5000:5000"
+    depends_on:
       - mongodb
 
-
   mongodb:
-  image: mongo
-  container_name: mongodb
-  ports:
-    - 27018:27017
-  environment:
-    - MONGO_INITDB_ROOT_USERNAME=admin
-    - MONGO_INITDB_ROOT_PASSWORD=password
-  volumes:
-    - mongo-data:/data/db
-  healthcheck:
-    test: ["CMD-SHELL", "mongo -u admin -p password --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
-    interval: 10s
-    timeout: 5s
-    retries: 5
-    start_period: 40s
+    image: mongo
+    container_name: mongodb
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongo -u admin -p password --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
-mongo-express:
-  image: mongo-express
-  restart: always
-  ports:
-    - 8081:8081
-  environment:
-    - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
-    - ME_CONFIG_MONGODB_ADMINPASSWORD=password
-    - ME_CONFIG_MONGODB_SERVER=mongodb
-  depends_on:
-    mongodb:
-      condition: service_healthy
-    
-  
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
   frontend:
     container_name: frontend-app
     image: frontend-app:1.0
-    environment:
-      - NODE_ENV=docker
-      - REACT_APP_API_BASE_URL=http://34.204.108.73:5000
-      
-    build: 
+    build:
       context: ./frontend
       dockerfile: Dockerfile
+    environment:
+      NODE_ENV: docker
+      REACT_APP_API_BASE_URL: http://34.204.108.73:5000
     ports:
-     - 4000:80
+      - "4000:80"
     depends_on:
-     - backend
+      - backend
 
   user-frontend:
     container_name: user-frontend-app
     image: user-frontend-app:1.0
-    environment:
-      - NODE_ENV=docker
-      - REACT_APP_API_BASE_URL=http://backend:5000
     build:
       context: ./user-portal-frontend
       dockerfile: Dockerfile
-
+    environment:
+      NODE_ENV: docker
+      REACT_APP_API_BASE_URL: http://backend:5000
     ports:
-
-      - 4001:80
-
-
+      - "4001:80"
     depends_on:
       - backend
       - frontend
