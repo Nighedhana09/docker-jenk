@@ -28,7 +28,7 @@ pipeline {
                     # Navigate to the folder containing docker-compose.yaml
                     cd .
                     # Build all services defined in docker-compose.yaml
-                    docker compose -f $DOCKER_COMPOSE_PATH build
+                    docker compose --env-file /dev/null -f $DOCKER_COMPOSE_PATH build
                 """
             }
         }
