@@ -6,14 +6,10 @@ services:
     image: niggi123/backend-app:1.0
     environment:
       - NODE_ENV=docker
-    build:
-      context: backend
-      dockerfile: Dockerfile
     ports:
       - 5000:5000
     links:
       - mongodb
-
 
   mongodb:
     image: mongo
@@ -24,12 +20,6 @@ services:
      - MONGO_INITDB_ROOT_PASSWORD=password
     volumes:
      - mongo-data:/data/db
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo mongo:27017/test --quiet
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
 
   mongo-express:
     image: mongo-express
@@ -41,19 +31,14 @@ services:
      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
      - ME_CONFIG_MONGODB_SERVER=mongodb
     depends_on:
-     - "mongodb"
-      
-  
+     - mongodb
+
   frontend:
     container_name: frontend-app
     image: niggi123/frontend-app:1.0
     environment:
       - NODE_ENV=docker
       - REACT_APP_API_BASE_URL=http://backend:5000
-      
-    build: 
-      context: ./frontend
-      dockerfile: Dockerfile
     ports:
      - 4000:80
     depends_on:
@@ -65,15 +50,8 @@ services:
     environment:
       - NODE_ENV=docker
       - REACT_APP_API_BASE_URL=http://backend:5000
-    build:
-      context: ./user-portal-frontend
-      dockerfile: Dockerfile
-
     ports:
-
-      - 4001:80
-
-
+     - 4001:80
     depends_on:
       - backend
       - frontend
