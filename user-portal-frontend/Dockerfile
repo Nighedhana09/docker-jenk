@@ -23,6 +23,6 @@ COPY --from=build /usr/user-portal-frontend/build /usr/share/nginx/html/
 # Copy custom Nginx config if using path-based routing
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 81
 
 CMD ["nginx", "-g", "daemon off;"]
