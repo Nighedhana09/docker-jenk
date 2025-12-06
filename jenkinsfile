@@ -5,9 +5,6 @@ pipeline {
         // Docker Hub credentials stored in Jenkins
         DOCKERHUB_CRED = 'dockerhub-creds'     
         DOCKER_USER = 'niggi123'
-        BACKEND_IMAGE = 'backend-app'
-        FRONTEND_IMAGE = 'frontend-app'
-        USER_FRONTEND_IMAGE = 'user-frontend-app'
         DOCKER_TAG = '1.0'
 
         // EC2 deployment variables
@@ -25,12 +22,13 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Docker Images via Compose') {
             steps {
                 sh """
-                    docker build -t $BACKEND_IMAGE:$DOCKER_TAG ./backend
-                    docker build -t $FRONTEND_IMAGE:$DOCKER_TAG ./frontend
-                    docker build -t $USER_FRONTEND_IMAGE:$DOCKER_TAG ./user-portal-frontend
+                    # Navigate to the folder containing docker-compose.yaml
+                    cd .
+                    # Build all services defined in docker-compose.yaml
+                    docker compose -f $DOCKER_COMPOSE_PATH build
                 """
             }
         }
@@ -45,14 +43,15 @@ pipeline {
                     sh """
                         echo $DOCKER_PASS | docker login -u $DOCKER_USER_VAR --password-stdin
 
-                        docker tag $BACKEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$BACKEND_IMAGE:$DOCKER_TAG
-                        docker push $DOCKER_USER/$BACKEND_IMAGE:$DOCKER_TAG
+                        # Push all images defined in compose
+                        docker tag backend-app:latest $DOCKER_USER/backend-app:$DOCKER_TAG
+                        docker push $DOCKER_USER/backend-app:$DOCKER_TAG
 
-                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
+                        docker tag frontend-app:latest $DOCKER_USER/frontend-app:$DOCKER_TAG
+                        docker push $DOCKER_USER/frontend-app:$DOCKER_TAG
 
-                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                        docker tag user-frontend-app:latest $DOCKER_USER/user-frontend-app:$DOCKER_TAG
+                        docker push $DOCKER_USER/user-frontend-app:$DOCKER_TAG
                     """
                 }
             }
@@ -68,12 +67,12 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no -i $SSH_KEY $SSH_USER@$EC2_IP '
                             echo "Stopping old containers..."
-                            sudo docker compose -f $DOCKER_COMPOSE_PATH down || true
+                            sudo docker compose -f $DOCKER_COMPOSE_PATH down --remove-orphans || true
 
                             echo "Pulling latest images..."
-                            sudo docker pull $DOCKER_USER/$BACKEND_IMAGE:$DOCKER_TAG
-                            sudo docker pull $DOCKER_USER/$FRONTEND_IMAGE:$DOCKER_TAG
-                            sudo docker pull $DOCKER_USER/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+                            sudo docker pull $DOCKER_USER/backend-app:$DOCKER_TAG
+                            sudo docker pull $DOCKER_USER/frontend-app:$DOCKER_TAG
+                            sudo docker pull $DOCKER_USER/user-frontend-app:$DOCKER_TAG
 
                             echo "Starting containers..."
                             sudo docker compose -f $DOCKER_COMPOSE_PATH up -d
@@ -95,4 +94,3 @@ pipeline {
         }
     }
 }
-//Captstone-project
