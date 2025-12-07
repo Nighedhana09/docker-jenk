@@ -79,19 +79,15 @@ echo "✅ Custom images pushed successfully!"
             steps {
                 sshagent(credentials: ['ec2-ssh-key']) {
                     sh """
-ssh -tt -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-echo "Connected to EC2 successfully"
-
-docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}
-docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}
-docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
-
-docker compose down --remove-orphans || true
-docker compose up -d
-
-docker ps -a
-echo "Deployment completed successfully!"
-EOF
+ssh -tt -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
+"echo 'Connected to EC2 successfully'; \
+docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}; \
+docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}; \
+docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}; \
+docker compose down --remove-orphans || true; \
+docker compose up -d; \
+docker ps -a; \
+echo 'Deployment completed successfully'"
                     """
                 }
             }
