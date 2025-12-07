@@ -9,6 +9,7 @@ pipeline {
         FRONTEND_IMAGE = 'frontend-app'
         USER_FRONTEND_IMAGE = 'user-frontend-app'
         DOCKER_TAG = '1.0'
+        NODE_ENV = 'docker' // change to 'test' if needed
     }
 
     stages {
@@ -19,16 +20,24 @@ pipeline {
             }
         }
 
-        stage('Build and Deploy Containers') {
+        stage('Stop Existing Containers') {
             steps {
                 sh """
                     echo "Stopping old containers (if any)..."
                     docker compose down --remove-orphans || true
+                """
+            }
+        }
 
-                    echo "Building all images and starting containers..."
-                    docker compose up -d --build
-
-                    echo "All containers are up and running!"
+        stage('Build and Start Containers') {
+            steps {
+                sh """
+                    echo "Building all images and starting containers with NODE_ENV=${NODE_ENV}..."
+                    export NODE_ENV=${NODE_ENV}
+                    docker compose build
+                    docker compose up -d
+                    docker ps -a
+                    echo "✅ All containers are up and running!"
                 """
             }
         }
@@ -44,17 +53,19 @@ pipeline {
                         echo "Logging in to Docker Hub..."
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
-                        echo "Tagging and pushing only custom images..."
+                        echo "Tagging and pushing backend image..."
                         docker tag $BACKEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
                         docker push \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
 
+                        echo "Tagging and pushing frontend image..."
                         docker tag $FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
                         docker push \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
 
+                        echo "Tagging and pushing user frontend image..."
                         docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
                         docker push \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
 
-                        echo "Custom images pushed successfully!"
+                        echo "✅ Custom images pushed successfully!"
                     """
                 }
             }
