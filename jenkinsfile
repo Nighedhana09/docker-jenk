@@ -27,8 +27,8 @@ pipeline {
         stage('Stop Existing Containers') {
             steps {
                 sh """
-                    echo "Stopping old containers (if any)..."
-                    docker compose down --remove-orphans || true
+echo "Stopping old containers (if any)..."
+docker compose down --remove-orphans || true
                 """
             }
         }
@@ -36,12 +36,12 @@ pipeline {
         stage('Build and Start Containers') {
             steps {
                 sh """
-                    echo "Building all images and starting containers with NODE_ENV=${NODE_ENV}..."
-                    export NODE_ENV=${NODE_ENV}
-                    docker compose build
-                    docker compose up -d
-                    docker ps -a
-                    echo "✅ All containers are up and running!"
+echo "Building all images and starting containers with NODE_ENV=${NODE_ENV}..."
+export NODE_ENV=${NODE_ENV}
+docker compose build
+docker compose up -d
+docker ps -a
+echo "✅ All containers are up and running!"
                 """
             }
         }
@@ -54,22 +54,22 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
-                        echo "🔐 Logging in to Docker Hub..."
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
+echo "🔐 Logging in to Docker Hub..."
+echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
-                        echo "📤 Tagging & pushing backend..."
-                        docker tag $BACKEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
-                        docker push \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
+echo "📤 Tagging & pushing backend..."
+docker tag ${BACKEND_IMAGE}:${DOCKER_TAG} \$DOCKER_USER_VAR/${BACKEND_IMAGE}:${DOCKER_TAG}
+docker push \$DOCKER_USER_VAR/${BACKEND_IMAGE}:${DOCKER_TAG}
 
-                        echo "📤 Tagging & pushing frontend..."
-                        docker tag $FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
+echo "📤 Tagging & pushing frontend..."
+docker tag ${FRONTEND_IMAGE}:${DOCKER_TAG} \$DOCKER_USER_VAR/${FRONTEND_IMAGE}:${DOCKER_TAG}
+docker push \$DOCKER_USER_VAR/${FRONTEND_IMAGE}:${DOCKER_TAG}
 
-                        echo "📤 Tagging & pushing user frontend..."
-                        docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
-                        docker push \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
+echo "📤 Tagging & pushing user frontend..."
+docker tag ${USER_FRONTEND_IMAGE}:${DOCKER_TAG} \$DOCKER_USER_VAR/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
+docker push \$DOCKER_USER_VAR/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
 
-                        echo "✅ Custom images pushed successfully!"
+echo "✅ Custom images pushed successfully!"
                     """
                 }
             }
@@ -77,21 +77,21 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                sshagent (credentials: ['ec2-ssh-key']) {
+                sshagent(credentials: ['ec2-ssh-key']) {
                     sh """
-                        ssh -tt -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
-                        echo "Connected to EC2 successfully"
+ssh -tt -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+echo "Connected to EC2 successfully"
 
-                        docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}
-                        docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}
-                        docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
+docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}
+docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}
+docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
 
-                        docker compose down --remove-orphans || true
-                        docker compose up -d
+docker compose down --remove-orphans || true
+docker compose up -d
 
-                        docker ps -a
-                        echo "Deployment completed successfully!"
-                       EOF
+docker ps -a
+echo "Deployment completed successfully!"
+EOF
                     """
                 }
             }
