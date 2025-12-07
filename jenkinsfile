@@ -10,6 +10,10 @@ pipeline {
         USER_FRONTEND_IMAGE = 'user-frontend-app'
         DOCKER_TAG = '1.0'
         NODE_ENV = 'docker' // change to 'test' if needed
+
+        // EC2 details
+        EC2_USER = 'ubuntu' // or ec2-user depending on your AMI
+        EC2_HOST = 'YOUR_EC2_PUBLIC_IP'
     }
 
     stages {
@@ -70,6 +74,32 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to EC2') {
+            steps {
+                sshagent(credentials: ["ec2-ssh-key"]) {
+                    sh """
+                        echo "Connecting to EC2 and deploying containers..."
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+                            echo "Pulling latest images from Docker Hub..."
+                            docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}
+                            docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}
+                            docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
+
+                            echo "Stopping old containers..."
+                            docker compose down --remove-orphans || true
+
+                            echo "Running containers with updated images..."
+                            docker compose up -d
+
+                            echo "✅ Deployment completed!"
+                            docker ps -a
+                        ENDSSH
+                    """
+                }
+            }
+        }
+
     }
 
     post {
