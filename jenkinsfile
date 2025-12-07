@@ -13,7 +13,7 @@ pipeline {
 
         // EC2 details
         EC2_USER = 'ubuntu'
-        EC2_HOST = '54.89.200.72'
+        EC2_HOST = '3.85.167.122'
     }
 
     stages {
