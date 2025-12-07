@@ -13,7 +13,7 @@ pipeline {
 
         // EC2 details
         EC2_USER = 'ubuntu' // or ec2-user depending on your AMI
-        EC2_HOST = 'YOUR_EC2_PUBLIC_IP'
+        EC2_HOST = '54.89.200.72'
     }
 
     stages {
