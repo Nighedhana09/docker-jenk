@@ -53,7 +53,7 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: docker
-      REACT_APP_API_BASE_URL: http://54.89.200.72:5000
+      REACT_APP_API_BASE_URL: http://backend:5000
     ports:
       - "4000:80"
     depends_on:
@@ -67,7 +67,7 @@ services:
       dockerfile: Dockerfile
     environment:
       NODE_ENV: docker
-      REACT_APP_API_BASE_URL: http://54.89.200.72:5000
+      REACT_APP_API_BASE_URL: http://backend:5000
     ports:
       - "4001:80"
     depends_on:
