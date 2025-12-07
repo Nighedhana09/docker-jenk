@@ -9,10 +9,10 @@ pipeline {
         FRONTEND_IMAGE = 'frontend-app'
         USER_FRONTEND_IMAGE = 'user-frontend-app'
         DOCKER_TAG = '1.0'
-        NODE_ENV = 'docker' // change to 'test' if needed
+        NODE_ENV = 'docker'
 
         // EC2 details
-        EC2_USER = 'ubuntu' // or ec2-user depending on your AMI
+        EC2_USER = 'ubuntu'
         EC2_HOST = '54.89.200.72'
     }
 
@@ -54,18 +54,18 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
-                        echo "Logging in to Docker Hub..."
+                        echo "🔐 Logging in to Docker Hub..."
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER_VAR --password-stdin
 
-                        echo "Tagging and pushing backend image..."
+                        echo "📤 Tagging & pushing backend..."
                         docker tag $BACKEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
                         docker push \$DOCKER_USER_VAR/$BACKEND_IMAGE:$DOCKER_TAG
 
-                        echo "Tagging and pushing frontend image..."
+                        echo "📤 Tagging & pushing frontend..."
                         docker tag $FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
                         docker push \$DOCKER_USER_VAR/$FRONTEND_IMAGE:$DOCKER_TAG
 
-                        echo "Tagging and pushing user frontend image..."
+                        echo "📤 Tagging & pushing user frontend..."
                         docker tag $USER_FRONTEND_IMAGE:$DOCKER_TAG \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
                         docker push \$DOCKER_USER_VAR/$USER_FRONTEND_IMAGE:$DOCKER_TAG
 
@@ -77,30 +77,27 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: ["ec2-ssh-key"]) {
+                sshagent (credentials: ['ec2-ssh-key']) {
                     sh """
-                        echo "Connecting to EC2 and deploying containers..."
-                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
-                            echo "Pulling latest images from Docker Hub..."
-                            docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}
-                            docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}
-                            docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
+                        ssh -tt -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
+                        echo "Connected to EC2 successfully"
 
-                            echo "Stopping old containers..."
-                            docker compose down --remove-orphans || true
+                        docker pull ${DOCKER_USER}/${BACKEND_IMAGE}:${DOCKER_TAG}
+                        docker pull ${DOCKER_USER}/${FRONTEND_IMAGE}:${DOCKER_TAG}
+                        docker pull ${DOCKER_USER}/${USER_FRONTEND_IMAGE}:${DOCKER_TAG}
 
-                            echo "Running containers with updated images..."
-                            docker compose up -d
+                        docker compose down --remove-orphans || true
+                        docker compose up -d
 
-                            echo "✅ Deployment completed!"
-                            docker ps -a
-                        ENDSSH
+                        docker ps -a
+                        echo "Deployment completed successfully!"
+                       EOF
                     """
                 }
             }
         }
 
-    }
+    } // end stages
 
     post {
         success {
@@ -111,4 +108,3 @@ pipeline {
         }
     }
 }
-//capstone
