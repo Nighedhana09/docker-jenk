@@ -3,27 +3,14 @@ const adminModel = require("../models/admin");
 const subjectModel = require("../models/subject");
 const { hashPassword } = require("./tool");
 
-/* ======================
-   REAL IMPLEMENTATIONS
-====================== */
+/* ===== REAL METHODS ===== */
 
 const teacherRegister = async (req, res) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res.status(401).json({ success: false });
     }
-
     const { username, password, email } = req.body;
-
-    if (!username || !password || !email) {
-      return res.json({ success: false, message: "Invalid input" });
-    }
-
-    const existing = await userModel.findOne({ email });
-    if (existing) {
-      return res.json({ success: false, message: "Email already exists" });
-    }
-
     const hash = await hashPassword(password);
 
     await userModel.create({
@@ -34,21 +21,15 @@ const teacherRegister = async (req, res) => {
       createdBy: req.user._id
     });
 
-    res.json({ success: true, message: "Teacher created successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false });
   }
 };
 
 const adminDetails = async (req, res) => {
-  res.json({
-    success: true,
-    user: {
-      _id: req.user._id,
-      username: req.user.username
-    }
-  });
+  res.json({ success: true, user: req.user });
 };
 
 const addAdminIfNotFound = async () => {
@@ -62,30 +43,28 @@ const addAdminIfNotFound = async () => {
   }
 };
 
-/* ======================
-   SAFE STUB FUNCTIONS
-   (PREVENT EXPRESS CRASH)
-====================== */
+/* ===== STUBS (CRITICAL) ===== */
 
-const notImplemented = (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: "Not implemented yet"
-  });
-};
+const addSubject = (req, res) =>
+  res.status(501).json({ success: false, message: "Not implemented" });
 
-/* ======================
-   EXPORTS
-====================== */
+const subjectRemove = (req, res) =>
+  res.status(501).json({ success: false, message: "Not implemented" });
+
+const unblockSubject = (req, res) =>
+  res.status(501).json({ success: false, message: "Not implemented" });
+
+const getDashboardCount = (req, res) =>
+  res.status(501).json({ success: false, message: "Not implemented" });
+
+/* ===== EXPORTS (MUST MATCH ROUTES) ===== */
 
 module.exports = {
   teacherRegister,
   adminDetails,
   addAdminIfNotFound,
-
-  // Required by routes/admin.js
-  addSubject: notImplemented,
-  subjectRemove: notImplemented,
-  unblockSubject: notImplemented,
-  getDashboardCount: notImplemented
+  addSubject,
+  subjectRemove,
+  unblockSubject,
+  getDashboardCount
 };
