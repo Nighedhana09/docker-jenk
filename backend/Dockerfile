@@ -11,4 +11,4 @@ COPY . .
 EXPOSE 5000
 
 # Use your actual main file here
-CMD ["node", "server.js"]
+CMD ["node", "app.js"]
