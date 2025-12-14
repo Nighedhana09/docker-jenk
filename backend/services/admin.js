@@ -1,7 +1,11 @@
 const userModel = require("../models/user");
-const subjectModel = require("../models/subject");
 const adminModel = require("../models/admin");
+const subjectModel = require("../models/subject");
 const { hashPassword } = require("./tool");
+
+/* ======================
+   REAL IMPLEMENTATIONS
+====================== */
 
 const teacherRegister = async (req, res) => {
   try {
@@ -30,10 +34,10 @@ const teacherRegister = async (req, res) => {
       createdBy: req.user._id
     });
 
-    res.json({ success: true, message: "Teacher created" });
+    res.json({ success: true, message: "Teacher created successfully" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -58,8 +62,30 @@ const addAdminIfNotFound = async () => {
   }
 };
 
+/* ======================
+   SAFE STUB FUNCTIONS
+   (PREVENT EXPRESS CRASH)
+====================== */
+
+const notImplemented = (req, res) => {
+  res.status(501).json({
+    success: false,
+    message: "Not implemented yet"
+  });
+};
+
+/* ======================
+   EXPORTS
+====================== */
+
 module.exports = {
   teacherRegister,
   adminDetails,
-  addAdminIfNotFound
+  addAdminIfNotFound,
+
+  // Required by routes/admin.js
+  addSubject: notImplemented,
+  subjectRemove: notImplemented,
+  unblockSubject: notImplemented,
+  getDashboardCount: notImplemented
 };
