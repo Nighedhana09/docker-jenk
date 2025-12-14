@@ -48,7 +48,7 @@
     "url": "git+https://github.com//backend.git"
   },
   "scripts": {
-    "start": "node app.js",
+    "start": "node index.js",
     "test": "jest"
   },
   "version": "1.0.0"
