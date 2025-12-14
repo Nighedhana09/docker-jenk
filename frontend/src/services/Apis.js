@@ -1,15 +1,12 @@
-const environment = process.env.NODE_ENV;
+const base_local_url =
+  process.env.REACT_APP_BASE_LOCAL_URL || 'http://44.220.134.30:4000';
 
-let base_local_url = 'http://localhost:4000';
-let base_backend_url = 'http://localhost:5000';
-if(environment==='docker') {
-  base_local_url = 'http://user-frontend-app:4000';
-  base_backend_url = 'http://backend:5000';
-}
+const base_backend_url =
+  process.env.REACT_APP_API_BASE_URL || 'http://44.220.134.30:5000';
 
 const apis = {
-  BASE_LOCAL_URL:base_local_url,
-  BASE : base_backend_url,
+  BASE_LOCAL_URL: base_local_url,
+  BASE: base_backend_url,
   LOGIN : "/api/v1/adminlogin/",
   REGISTER_USER : "/api/v1/public/register",
   GET_ADMIN_DETAILS : "/api/v1/admin/details",
@@ -23,6 +20,6 @@ const apis = {
   UNBLOCK_SUBJECT : "/api/v1/admin/unblockSubject",
   ADD_TEACHER : "/api/v1/admin/register",
   ADD_SUBJECT : "/api/v1/admin/addSubject"
-}
+};
 
 export default apis;
