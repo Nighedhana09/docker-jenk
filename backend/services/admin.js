@@ -2,7 +2,7 @@ var userModel = require('../models/user');
 var subjectModel = require('../models/subject');
 var tool = require('./tool');
 const adminModel = require('../models/admin');
-const { hashPassword } = require('../services/tool');
+//const { hashPassword } = require('../services/tool');
 
 var teacherRegister = (req,res,next) => {
   var creator = req.user || null;
@@ -357,7 +357,7 @@ var addAdminIfNotFound = () => {
     if(admin) {
       console.log("Admin user found");
     } else {
-      hashPassword("systemadmin").then((hash)=>{
+      tool.hashPassword("systemadmin").then((hash)=>{
         var tempAdmin = new adminModel({
           username : "sysadmin",
           password : hash
