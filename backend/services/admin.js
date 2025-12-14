@@ -1,83 +1,65 @@
-var userModel = require('../models/user');
-var subjectModel = require('../models/subject');
-var tool = require('./tool');
-const adminModel = require('../models/admin');
-const { hashPassword } = require('../services/tool');
+const userModel = require("../models/user");
+const subjectModel = require("../models/subject");
+const adminModel = require("../models/admin");
+const { hashPassword } = require("./tool");
 
-// Wrap all handlers with try/catch
-var teacherRegister = async (req,res) => {
-    try {
-        var creator = req.user || null;
-        req.check('username','Invalid name').notEmpty();
-        req.check('email','Invalid Email Address').isEmail().notEmpty();
-        req.check('password','Invalid Password').isLength({min: 5, max: 20});
-        var errors = req.validationErrors();
-        
-        if(!creator) return res.status(401).json({ success:false, message:"Permissions not granted!" });
-        if(errors) return res.json({ success:false, message:"Invalid inputs", errors });
-
-        var { username, password, email } = req.body;
-        let user = await userModel.findOne({email});
-        if(user) return res.json({ success:false, message:"This email already exists!" });
-
-        let hash = await tool.hashPassword(password);
-        let newUser = new userModel({
-            username, password: hash, email, usertype: 'TEACHER', createdBy: creator._id
-        });
-        await newUser.save();
-        res.json({ success:true, message:"Profile created successfully!" });
-    } catch(err) {
-        console.error(err);
-        res.status(500).json({ success:false, message:"Unable to register profile" });
+const teacherRegister = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-}
 
-var userRemove = async (req,res) => {
-    try {
-        if(!req.user) return res.status(401).json({ success:false, message:"Permissions not granted!" });
-        await userModel.findOneAndUpdate({ _id: req.body._id }, { status:false });
-        res.json({ success:true, message:"Account has been removed" });
-    } catch(err) {
-        console.error(err);
-        res.status(500).json({ success:false, message:"Unable to remove account" });
+    const { username, password, email } = req.body;
+
+    if (!username || !password || !email) {
+      return res.json({ success: false, message: "Invalid input" });
     }
-}
 
-var unblockUser = async (req,res) => {
-    try {
-        if(!req.user) return res.status(401).json({ success:false, message:"Permissions not granted!" });
-        await userModel.findOneAndUpdate({ _id: req.body._id }, { status:true });
-        res.json({ success:true, message:"Account has been unblocked" });
-    } catch(err) {
-        console.error(err);
-        res.status(500).json({ success:false, message:"Unable to unblock account" });
+    const existing = await userModel.findOne({ email });
+    if (existing) {
+      return res.json({ success: false, message: "Email already exists" });
     }
-}
 
-var adminDetails = async (req,res) => {
-    try {
-        if(req.user) {
-            res.json({ success:true, user:{ username:req.user.username, _id:req.user._id } });
-        } else {
-            res.json({ success:false, user:{} });
-        }
-    } catch(err) {
-        console.error(err);
-        res.status(500).json({ success:false, message:"Internal Server Error" });
+    const hash = await hashPassword(password);
+
+    await userModel.create({
+      username,
+      email,
+      password: hash,
+      usertype: "TEACHER",
+      createdBy: req.user._id
+    });
+
+    res.json({ success: true, message: "Teacher created" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
+};
+
+const adminDetails = async (req, res) => {
+  res.json({
+    success: true,
+    user: {
+      _id: req.user._id,
+      username: req.user.username
     }
-}
+  });
+};
 
-// Similar pattern for addSubject, subjectRemove, unblockSubject, getDashboardCount
-// Wrap all in try/catch and always return JSON
+const addAdminIfNotFound = async () => {
+  const count = await adminModel.countDocuments();
+  if (count === 0) {
+    await adminModel.create({
+      username: "admin",
+      password: await hashPassword("admin123")
+    });
+    console.log("✅ Default admin created");
+  }
+};
 
-module.exports = { 
-    teacherRegister, 
-    userRemove, 
-    unblockUser, 
-    adminDetails, 
-    addSubject: async function(req,res){ try{ /* your code */ } catch(e){ console.error(e); res.status(500).json({success:false}) } }, 
-    subjectRemove: async function(req,res){ try{ /* your code */ } catch(e){ console.error(e); res.status(500).json({success:false}) } },
-    unblockSubject: async function(req,res){ try{ /* your code */ } catch(e){ console.error(e); res.status(500).json({success:false}) } },
-    getDashboardCount: async function(req,res){ try{ /* your code */ } catch(e){ console.error(e); res.status(500).json({success:false}) } },
-    addAdminIfNotFound: async function(){ try{ /* your code */ } catch(e){ console.error(e); } }
-}
+module.exports = {
+  teacherRegister,
+  adminDetails,
+  addAdminIfNotFound
+};
