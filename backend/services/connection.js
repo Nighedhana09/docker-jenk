@@ -8,9 +8,7 @@ mongoose.connect(
   config.get("mongodb.connectionString"),
   {
     useNewUrlParser: true,
-    useUnifiedTopology: true,
-    autoIndex: false,
-    maxPoolSize: 10
+    useUnifiedTopology: true
   }
 ).then(() => {
   console.log("✅ Connected to MongoDB");
